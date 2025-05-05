@@ -1,2 +1,2 @@
 # HC-SR04_STM32
-Bare metal driver implementation for HC-SR04. 
+My take on bare metal driver implementation for HC-SR04. 
