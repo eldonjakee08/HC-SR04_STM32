@@ -21,7 +21,7 @@ Call ultrasonic_init() during hardware initialization phase. This function initi
 
 ![image](https://github.com/user-attachments/assets/57bd8b6f-6021-4f22-9cf5-4d733f690b9a)
 
-To measure the distance, call ping_IT(float *pDistanceBuffer), pDistanceBuffer is a float pointer where the distance measurement will be stored.
+To measure the distance, call ping_IT(float *pDistanceBuffer), pDistanceBuffer is a float pointer where the distance measurement (in cm) will be stored.
 
 ![image](https://github.com/user-attachments/assets/87dffd08-dfca-4217-ba33-8483c3773a28)
 
