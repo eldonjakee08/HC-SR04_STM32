@@ -24,6 +24,6 @@
  * APIs supported by driver
  */
 void ultrasonic_init(void);
-void ping_IT(float *pDistance);
+void ping_IT(float *pDistanceBuffer);
 
 #endif /* HCSR04_DRIVER_HCSR04_DRIVER_CONF_H_ */

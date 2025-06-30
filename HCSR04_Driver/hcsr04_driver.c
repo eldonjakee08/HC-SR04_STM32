@@ -14,12 +14,16 @@ static void Error_Handler1(void);
 TIM_HandleTypeDef ultrasonic_TIM2;
 float *pDistance1;
 
-
-void ping_IT(float *pDistance)
+/**
+ * @brief  Measures distance with ultrasonic sensor. Uses not blocking mode (interrupts) for trig pulse generation and distance measurement
+ * @param  float *pDistanceBuffer, float pointer to distance data buffer
+ * @retval none
+ */
+void ping_IT(float *pDistanceBuffer)
 {
 	//flag for calling ping function for 1st time
 	static uint8_t ping_1st_time = 1;
-	pDistance1 = pDistance;
+	pDistance1 = pDistanceBuffer;
 
 	if(ping_1st_time == 1)
 	{
@@ -58,7 +62,7 @@ void ping_IT(float *pDistance)
 }
 
 /**
- * @brief  Initializes ultrasonic TIMER peripheral and ultrasonic GPIO pins pins
+ * @brief  Initializes ultrasonic TIMER2 peripheral and ultrasonic GPIO alternate function pins
  * @param  none
  * @retval none
  */
@@ -100,8 +104,8 @@ void ultrasonic_init(void)
 	//configure TIM2 CH2 (TRIG PIN) as output compare mode
 	sConfigOC.OCMode = TIM_OCMODE_PWM2;	//PWM2 MODE - In upcounting, CH2 is inactive/low as long as
 										//TIMx_CNT<TIMx_CCR2 else active.
-										//THIS VALUE WILL BE PROGRAMMED TO CCR2
 
+	//THIS VALUE WILL BE PROGRAMMED TO CCR2
 	sConfigOC.Pulse = 1; //AT TIMx_CNT = 0 LOW STATE, BUT AT TIMx_CNT = 1 HIGH STATE UNTIL TIMx_CNT = 10
 						 //THEN TIMx_CNT RESETS TO 0 (SINCE ARR=10) DRIVING THE OUTPUT LOW. TOTAL OF 10us PULSE
 	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -114,7 +118,6 @@ void ultrasonic_init(void)
 	ultrasonic_TIM2.Instance->CR1 |= TIM_CR1_OPM;
 
 
-	//configure timer as stand alone operation and independent of other timers
 	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 	if (HAL_TIMEx_MasterConfigSynchronization(&ultrasonic_TIM2, &sMasterConfig) != HAL_OK)
@@ -146,9 +149,6 @@ static void TIM2_GPIO_Init()
 		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-		//DRIVE TRIG PIN LOW AFTER INIT
-		//HAL_GPIO_WritePin(GPIOA, TRIG_PIN, GPIO_PIN_SET);
 
 		GPIO_InitStruct.Pin = ECHO_PIN;
 		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
@@ -183,7 +183,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 	{
 		if(is_1st_call)
 		{
-			//SAVES 1ST CAPTURED VALUE WHICH WILL BE USED FOR DISTANCE CALCULATION
+			//SAVE 1ST CAPTURED VALUE WHICH WILL BE USED FOR DISTANCE CALCULATION
 			cnt_read[0] = htim->Instance->CCR4;
 
 
@@ -205,9 +205,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				difference = (0xFFFFFFFF - cnt_read[0]) + (cnt_read[1]+1);
 			}
 
-			//343m/s convert to 0.034cm/us, divide 2 because need only 1 way distance of the sound travelled
+			//343m/s convert to 0.034cm/us then div 2 because need only 1 way of distance travelled by sound
 			distance = difference * (0.034/2);
 
+			//store distance data into distance buffer
 			if(distance <= MAX_DISTANCE)
 			{
 				*pDistance1 = distance;
@@ -245,7 +246,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 /*
  * AFTER 10US PULSE AN UPDATE EVENT IS TRIGGERED WHICH GENERATES AN INTERRUPT
- * WILL PERFORM CLEANUP ROUTINE FOR TIM2 CH2 TO PREPARE FOR CH4 TO LISTEN ON ECHO PIN
+ * WILL PERFORM CLEANUP ROUTINE FOR TIM2 CH2 AND PREPARE CH4 TO LISTEN ON ECHO PIN
  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -255,7 +256,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	//DISABLE TIM2 CH2 TO PREVENT FROM SENDING PULSES WHEN TIM2 START UPCOUNTING AGAIN
 	htim->Instance->CCER &= ~(TIM_CCER_CC2E);
 
-	//DISABLE AUTO RELOAD PRELOAD BECAUSE NEED TO SET ARR = 10 IMMEDIATELY AFTER INPUT CAPTURE 2ND IT
+	//DISABLE AUTO RELOAD PRELOAD BECAUSE NEED TO SET ARR = 10 IMMEDIATELY AFTER INPUT CAPTURE 2ND INTERRUPT
 	htim->Instance->CR1 &= ~(TIM_CR1_ARPE);
 
 	//ENABLE TIM2 TO START COUNTING AGAIN
